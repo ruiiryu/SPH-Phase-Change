@@ -71,24 +71,25 @@ bool createParticle(vector<Particle> &particles, double r, const char* scene, in
     int count=0;
     while (!sc.eof()) {
         sc>>bbox[count];
+        cout<<"bbox" << bbox[count]<<std::endl;
         count++;
 
     }
     sc.close();
 
     if(box == 0){//rectangle water at back
-        for(int i= bbox[0]*10; i<bbox[1]*10; i++){
-            for(int j= bbox[2]*10; j<bbox[2]*5; j++){
-                for(int k= bbox[4]*10; k<bbox[4]*8.5; k++){
-                    particles.push_back(Particle(i*0.1, j*0.1, k*0.1,r));
+        for(float i= bbox[0]; i<bbox[0]*0.85; i=i+r+r){//-4 -3.4 = 0.6
+            for(float j= bbox[2]; j<bbox[2]*0.5; j=j+r+r){//-4 -2 = 2
+                for(float k= bbox[4]; k<bbox[5]; k=k+r+r){//-4 4 = 8
+                    particles.push_back(Particle(i, j, k,r));
                 }
             }
         }
     }else if(box == 1){//cube water at center
-        for(int i= -10; i<10; i++){
-            for(int j= -10; j<10; j++){
-                for(int k= -10; k<10; k++){
-                    particles.push_back(Particle(i*0.1, (j*0.1)+bbox[2]+1, k*0.1,r));
+        for(float i= -1.0; i<1; i=i+r+r){
+            for(float j= -1.0; j<1; j=j+r+r){
+                for(float k= -1.0; k<1; k=k+r+r){
+                    particles.push_back(Particle(i, j+bbox[2]+1, k,r));
                 }
             }
         }
@@ -104,7 +105,7 @@ int main(int argc, char *argv[])
         infname = atoi(argv[2]);
     }
 
-    double radius = 0.04f;
+    double radius = 0.05f;
 
     if(createParticle(particles, radius, test_scene, infname)){
         cout<<"create particle success." << particles.size()<<std::endl;

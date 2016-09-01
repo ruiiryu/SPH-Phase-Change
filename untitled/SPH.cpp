@@ -64,7 +64,10 @@ SPHParticleSystem::SPHParticleSystem(vector<Particle> &particles , double xmin, 
 
                      p6             p2
 
-
+                    Natual      unit            Modify      unit
+   rest density :   1000        kg/m**3
+   viscosity    :   1.52        kg/ms
+   k            :   3000        m/s
 */
     p_grid = NULL;
     InitSPH();
@@ -81,7 +84,7 @@ void SPHParticleSystem::InitSPH(){
     //reden=125f;
     vis = 1.52f;//viscosity(0.89 centiPoise) kg/ms
     //vis_ice = 0.89;
-    k = 3000.0f;//(stiffness) speed of sound unit: m/s
+    k = 1484.0f;//(stiffness) speed of sound unit: m/s //Individual Gas Constant - R 461.5 (J/kg K)
 
     max_acceleration = 300.0f;
     max_acceleration_sqrt = sqrtf(max_acceleration);

@@ -11,7 +11,7 @@ using namespace std;
 
 
 const double PI=3.1415926535;
-
+int extern infname;
 
 struct Rigid_Body{
     vector<unsigned> listICEparticle;
@@ -84,6 +84,7 @@ public:
     void DetectingCollision(unsigned index);
     void ResolvingCollisions(Particle& p1,Particle& p2);
     void UpdateParticlePosition();
+    void wall_collide(unsigned index);
     void EnforceVelocityConstraints(unsigned index);
     void EnforceForceConstraints(unsigned index);
 

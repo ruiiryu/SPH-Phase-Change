@@ -35,7 +35,7 @@ SPHParticleSystem::SPHParticleSystem(vector<Particle> &particles , double xmin, 
     cout<<"Init SPH system"<<std::endl;
     time_current = 0.0f;
     time_end = 1.0f;
-    time_delta = 0.01f;// (seconds per frame)
+    time_delta = 0.02f;// (0.001 seconds per frame)
     frame = unsigned(floorf(time_current/time_delta+0.5f));
     list_particles = particles;
     bbox[0] = xmin;     bbox[1] = xmax;
@@ -64,27 +64,30 @@ SPHParticleSystem::SPHParticleSystem(vector<Particle> &particles , double xmin, 
 
                      p6             p2
 
-                    Natual      unit            Modify      unit
-   rest density :   1000        kg/m**3
-   viscosity    :   1.52        kg/ms
-   k            :   3000        m/s
 */
     p_grid = NULL;
     InitSPH();
 }
 
 void SPHParticleSystem::InitSPH(){
-    h = 0.3f;//unit: m
+    h = 0.3f;//unit: cm
     //h = 0.1f;
     hh = h*h;
     gamma = 1.0f;
     sigma = 0.0f;
     zeta = 1.0f;
-    reden=1000.0f;//rest density unit: kg/m^3
-    //reden=125f;
-    vis = 1.52f;//viscosity(0.89 centiPoise) kg/ms
-    //vis_ice = 0.89;
-    k = 1484.0f;//(stiffness) speed of sound unit: m/s //Individual Gas Constant - R 461.5 (J/kg K)
+    //reden=1000.0f;//rest density unit: kg/m^3
+    if(infname == 0){
+        reden=128.0f;//g/cm^3
+    }else{
+        reden=12.0f;
+    }
+
+    //vis = 1.52f;//viscosity kg/ms
+    vis = 0.0152f;//g/cm(0.001)s
+    //k = 343.2f;//(stiffness) speed of sound unit: m/s
+    //Individual Gas Constant - R 461.5 (J/kg K)
+    k = 34.32f;//cm/(0.001)s
 
     max_acceleration = 300.0f;
     max_acceleration_sqrt = sqrtf(max_acceleration);
@@ -115,11 +118,12 @@ void SPHParticleSystem::InitSPH(){
     kernel_spiky_diff = -45.0f/(PI*powf(h, 6.0f));
     kernel_laplacian = 45.0f/(PI*powf(h, 6.0f));
 
+    double mass = 0.001;
     for(unsigned i = 0; i<particle_num ; i++){
         Particle& p = list_particles[i];
         p.id = i;
         p.area = 6*4*p.radius*p.radius;
-        //p.mass = p.density/particle_num*(p.radius*p.radius*p.radius*8);
+        p.mass = mass;
     }
 
     sprintf(compare_particle,
@@ -141,23 +145,24 @@ bool SPHParticleSystem::savefile(){
         cout << "An exception occurred. Exception Nr. " << e << '\n';
         return false;
     }
-    //for(unsigned i=0; i<particle_num; i++){
-        Particle& curr = list_particles[10];
-        out << "Frame: " << frame << std::endl;
-        out << "particle number: " << 10 << std::endl;
-        out << "pos: " << curr.pos[0] << " " << curr.pos[1] << " " << curr.pos[2] << std::endl;
-        out << "nbs-size: " << curr.nbs.size() << std::endl;
-        out << "mass: " << curr.mass << std::endl;
-        out << "area: " << curr.area << std::endl;
-        out << "density: " << curr.density << std::endl;
-        out << "pressure: " << curr.pressure << std::endl;
-        out << "acc: " << curr.acc[0] << " " << curr.acc[1] << " " << curr.acc[2] << std::endl;
-        out << "vel: " << curr.velocity[0] << " " << curr.velocity[1] << " " << curr.velocity[2] << " " <<std::endl;
-        out << "Temperature: " << curr.T[0] << std::endl;
-        out << "Heat: " << curr.heatvalue << std::endl;
+    for(unsigned i=0; i<particle_num; i++){
+        Particle& curr = list_particles[i];
+        //out << "Frame: " << frame << std::endl;
+        //out << "particle number: " << 10 << std::endl;
+        //out << "pos: " << curr.pos[0] << " " << curr.pos[1] << " " << curr.pos[2] << std::endl;
+        //out << "nbs-size: " << curr.nbs.size() << std::endl;
+        //out << "mass: " << curr.mass << std::endl;
+        //out << "area: " << curr.area << std::endl;
+        //out << "density: " << curr.density << std::endl;
+        //out << "pressure: " << curr.pressure << std::endl;
+        //out << "acc: " << curr.acc[0] << " " << curr.acc[1] << " " << curr.acc[2] << std::endl;
+        //out << "vel: " << curr.velocity[0] << " " << curr.velocity[1] << " " << curr.velocity[2] << " " <<std::endl;
+        out << curr.velocity[0] << " " << curr.velocity[1] << " " << curr.velocity[2] << " " <<std::endl;
+        //out << "Temperature: " << curr.T[0] << std::endl;
+        //out << "Heat: " << curr.heatvalue << std::endl;
         out << "------------------------------------------------" << std::endl;
 
-    //}
+    }
     out.close();
     return true;
 }
@@ -240,97 +245,24 @@ double SPHParticleSystem::SPHStep(){
     clock_t end = clock();
     return double(end - start)/CLOCKS_PER_SEC;
 }
+/*
+    00000 00000
+    00000
+    00-00
+    00000
+    00000
+    h=0.2
+    max nb = 124
+*/
 
 void SPHParticleSystem::SearchParticleNeighbors(){
     cout<<"SearchParticleNeighbors."<<std::endl;
     for(unsigned i=0; i<particle_num; i++){
         p_grid->Search(i, list_particles[i].nbs);
     }
-}
-
-void SPHParticleSystem::UpdateParticleTemperature(unsigned index, unsigned c){
-        Particle& particle = list_particles[index];
-        if(c == 1){
-            double cd = 0;
-            if(particle.type == Particle::ICE){
-                cd = c_ice;
-            }else if(particle.type == Particle::WATER){
-                cd = c_w;
-            }else{
-                cd = 0;
-            }
-            for(unsigned j=0; j<particle.nbs.size(); j++){
-                Particle& nb_particle = list_particles[particle.nbs[j].first];
-                double distance = particle.nbs[j].second;
-                //particle-particle
-                //T-delta = cd*massJ/densityJ*(Tj-Ti)*kernel_laplacian
-                particle.T[1] += cd*nb_particle.mass/nb_particle.density*
-                        (nb_particle.T[0]-particle.T[0])*kernel_laplacian*(h-distance);
-            }
-        }
-
-        //particle-air
-        //Qi = h(T air − T i )δA
-        //find not touch air
-        double Q;
-
-        for(unsigned j=0; j<particle.nbs.size(); j++){
-            Particle& nb_particle = list_particles[particle.nbs[j].first];
-            if(particle.pos[0]>nb_particle.pos[0]){//-x
-                particle.nbs_notAir[0]++;
-            }else if(particle.pos[0]<nb_particle.pos[0]){//x
-                particle.nbs_notAir[1]++;
-            }
-            if(particle.pos[1]>nb_particle.pos[1]){//-y
-                particle.nbs_notAir[2]++;
-            }else if(particle.pos[1]<nb_particle.pos[1]){//y
-                particle.nbs_notAir[3]++;
-            }
-            if(particle.pos[2]>nb_particle.pos[2]){//-z
-                particle.nbs_notAir[4]++;
-            }else if(particle.pos[2]<nb_particle.pos[2]){//z
-                particle.nbs_notAir[5]++;
-            }
-        }
-
-        double count = 0;
-        for(unsigned k=0; k<6; k++){
-            if(particle.nbs_notAir[k]<45){
-                count++;
-            }
-        }
-        cout <<" particle: "<< index <<" air count: "<< count << std::endl;
-
-        Q = hc*(T_room-(particle.T[0]+particle.T[1]))*(count/6.0f)*particle.area;
-        if(c == 1){
-            particle.T[1] += Q/(ch*particle.mass);
-            particle.T[0] += particle.T[1];
-        }
-        particle.heatvalue += Q;
 
 }
 
-void SPHParticleSystem::UpdateParticleEnergy(){
-    for(unsigned i=0; i<particle_num; i++){
-        Particle& particle = list_particles[i];
-        if(particle.T[0]>273.15f && particle.type == Particle::ICE && particle.heatvalue>LH){
-            particle.type = Particle::WATER;
-            listWaterparticle.push_back(i);
-            particle.color[0] = 0.0f;
-            particle.color[1] = 1.0f;
-            particle.color[2] = 0.0f;
-            UpdateParticleTemperature(i,1);
-        }else if(particle.T[0]>=273.15f && particle.type == Particle::ICE){
-            particle.color[0] = 0.0f;
-            particle.color[1] = 1.0f;
-            particle.color[2] = 1.0f;
-            UpdateParticleTemperature(i,0);
-        }else{
-            UpdateParticleTemperature(i,1);
-        }
-    }
-
-}
 
 void SPHParticleSystem::UpdateParticlePressure(){
     cout<<"UpdateParticlePressure."<<std::endl;
@@ -388,7 +320,7 @@ void SPHParticleSystem::UpdateParticlePosition(){
 
         particle.pos += particle.velocity_delta*time_delta;
 
-        EnforceVelocityConstraints(i);
+        wall_collide(i);
 
         particle.velocity = (prev_velocity + particle.velocity_delta)*0.5f;
 
@@ -397,10 +329,14 @@ void SPHParticleSystem::UpdateParticlePosition(){
 
 }
 
-void SPHParticleSystem::EnforceVelocityConstraints(unsigned index){
+void SPHParticleSystem::wall_collide(unsigned index){
     Particle& particle = list_particles[index];
-    while(particle.pos[0]<bbox[0] || particle.pos[1]<bbox[2] || particle.pos[2]<bbox[4]
-        || particle.pos[0]>bbox[1] || particle.pos[1]>bbox[3] || particle.pos[2]>bbox[5]){
+    while(particle.pos[0]<bbox[0]
+          || particle.pos[1]<bbox[2]
+          || particle.pos[2]<bbox[4]
+          || particle.pos[0]>bbox[1]
+          || particle.pos[1]>bbox[3]
+          || particle.pos[2]>bbox[5]){
         for(unsigned i=0; i<3; i++){
             unsigned ii=i+i;
             if(particle.pos[i]<bbox[ii]){
@@ -412,7 +348,6 @@ void SPHParticleSystem::EnforceVelocityConstraints(unsigned index){
                 particle.pos[i] = bbox[ii]+fabsf(particle.velocity_delta[i])*time_diff;
             }
         }
-
         for(unsigned i=0; i<3; i++){
             unsigned ii=i+i+1;
             if(particle.pos[i]>bbox[ii]){
@@ -426,3 +361,4 @@ void SPHParticleSystem::EnforceVelocityConstraints(unsigned index){
         }
     }
 }
+

@@ -78,18 +78,18 @@ bool createParticle(vector<Particle> &particles, double r, const char* scene, in
     sc.close();
 
     if(box == 0){//rectangle water at back
-        for(float i= bbox[0]; i<bbox[0]*0.85; i=i+r+r){//-4 -3.4 = 0.6
-            for(float j= bbox[2]; j<bbox[2]*0.5; j=j+r+r){//-4 -2 = 2
-                for(float k= bbox[4]; k<bbox[5]; k=k+r+r){//-4 4 = 8
-                    particles.push_back(Particle(i, j, k,r));
+        for(double i= bbox[0]; i<(bbox[0]*3)/4; i=i+r+r){//-4 -3 = 1
+            for(double j= bbox[2]; j<bbox[3]; j=j+r+r){//-4 4 = 8
+                for(double k= bbox[4]; k<bbox[5]; k=k+r+r){//-4 4 = 8
+                    particles.push_back(Particle(i, j, k,r));//8*8*2 = 128
                 }
             }
         }
     }else if(box == 1){//cube water at center
-        for(float i= -1.0; i<1; i=i+r+r){
-            for(float j= -1.0; j<1; j=j+r+r){
-                for(float k= -1.0; k<1; k=k+r+r){
-                    particles.push_back(Particle(i, j+bbox[2]+1, k,r));
+        for(double i= -1.0; i<1; i=i+r+r){
+            for(double j= -1.0; j<2; j=j+r+r){
+                for(double k= -1.0; k<1; k=k+r+r){
+                    particles.push_back(Particle(i, j, k,r));
                 }
             }
         }

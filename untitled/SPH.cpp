@@ -70,18 +70,21 @@ SPHParticleSystem::SPHParticleSystem(vector<Particle> &particles , double xmin, 
 }
 
 void SPHParticleSystem::InitSPH(){
-    h = 0.3f;//unit: cm
-    //h = 0.1f;
+
+    //
+    if(infname == 0){
+        h = 0.6f;
+        reden=64.0f;//g/cm^3
+    }else{
+        h = 0.2f;//unit: cm
+        reden=12.0f;
+    }
     hh = h*h;
     gamma = 1.0f;
     sigma = 0.0f;
     zeta = 1.0f;
     //reden=1000.0f;//rest density unit: kg/m^3
-    if(infname == 0){
-        reden=128.0f;//g/cm^3
-    }else{
-        reden=12.0f;
-    }
+
 
     //vis = 1.52f;//viscosity kg/ms
     vis = 0.0152f;//g/cm(0.001)s
@@ -118,7 +121,7 @@ void SPHParticleSystem::InitSPH(){
     kernel_spiky_diff = -45.0f/(PI*powf(h, 6.0f));
     kernel_laplacian = 45.0f/(PI*powf(h, 6.0f));
 
-    double mass = 0.001;
+    double mass = 0.01;
     for(unsigned i = 0; i<particle_num ; i++){
         Particle& p = list_particles[i];
         p.id = i;
@@ -172,7 +175,6 @@ double SPHParticleSystem::SPHStep(){
     if(p_grid != NULL) delete p_grid;
     p_grid = new Grid(bbox, h, list_particles);
     SearchParticleNeighbors();
-    //UpdateParticleEnergy();
     UpdateParticlePressure();
 
     UpdateParticleAcceleration();
@@ -323,10 +325,29 @@ void SPHParticleSystem::UpdateParticlePosition(){
         wall_collide(i);
 
         particle.velocity = (prev_velocity + particle.velocity_delta)*0.5f;
-
     }
+    //obj_collide();
 
 
+}
+
+void SPHParticleSystem::obj_collide(){
+    for(unsigned i=0; i<particle_num; i++){
+        Particle& particle = list_particles[i];
+        for(unsigned j=0; j<particle.nbs.size(); j++){
+            Particle& nb_particle = list_particles[particle.nbs[j].first];
+            double distance = sqrtf((particle.pos-nb_particle.pos).squared_length());
+            if(distance < (particle.radius+nb_particle.radius)){
+                Vector3 v1 = particle.pos-particle.pre_pos;
+                Vector3 v2 = nb_particle.pos-nb_particle.pre_pos;
+                double factor = (distance-(particle.radius+nb_particle.radius))/distance;
+                particle.pos = particle.pos-(v1*factor*0.5);
+                nb_particle.pos = nb_particle.pos+(v2*factor*0.5);
+            }
+
+        }
+        wall_collide(i);
+    }
 }
 
 void SPHParticleSystem::wall_collide(unsigned index){
@@ -359,6 +380,51 @@ void SPHParticleSystem::wall_collide(unsigned index){
                 particle.pos[i] = bbox[ii]-fabsf(particle.velocity_delta[i])*time_diff;
             }
         }
+        for(unsigned j=0; j<particle.nbs.size(); j++){
+            Particle& nb_particle = list_particles[particle.nbs[j].first];
+            double distance = sqrtf((particle.pos-nb_particle.pos).squared_length());
+            if(distance < (particle.radius+nb_particle.radius)){
+                Vector3 v1 = (particle.pos-particle.pre_pos);
+                Vector3 v2 = (nb_particle.pos-nb_particle.pre_pos);
+                double factor = (distance-(particle.radius+nb_particle.radius))/distance;
+                particle.pos = particle.pos-(v1*factor*0.5);
+                if(particle.pos[0]<bbox[0]
+                        || particle.pos[1]<bbox[2]
+                        || particle.pos[2]<bbox[4]
+                        || particle.pos[0]>bbox[1]
+                        || particle.pos[1]>bbox[3]
+                        || particle.pos[2]>bbox[5]){
+                    for(unsigned i=0; i<3; i++){
+                        unsigned ii=i+i;
+                        if(particle.pos[i]<bbox[ii]){
+                            double pd = particle.pos[i];
+                            double dist_diff = bbox[ii]-pd;
+                            double time_diff = dist_diff/fabsf(particle.velocity_delta[i]);
+                            particle.velocity_delta[i]=-particle.velocity_delta[i];
+                            particle.velocity_delta = particle.velocity_delta * damp;
+                            particle.pos[i] = bbox[ii]+fabsf(particle.velocity_delta[i])*time_diff;
+                        }
+                    }
+                    for(unsigned i=0; i<3; i++){
+                        unsigned ii=i+i+1;
+                        if(particle.pos[i]>bbox[ii]){
+                            double pd = particle.pos[i];
+                            double dist_diff = pd-bbox[ii];
+                            double time_diff = dist_diff/fabsf(particle.velocity_delta[i]);
+                            particle.velocity_delta[i]=-particle.velocity_delta[i];
+                            particle.velocity_delta = particle.velocity_delta * damp;
+                            particle.pos[i] = bbox[ii]-fabsf(particle.velocity_delta[i])*time_diff;
+                        }
+                    }
+
+                }
+                //nb_particle.pos = nb_particle.pos+(v2*factor*0.5);
+            }
+
+        }
     }
+
+
 }
+
 

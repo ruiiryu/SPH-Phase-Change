@@ -85,6 +85,7 @@ public:
     void ResolvingCollisions(Particle& p1,Particle& p2);
     void UpdateParticlePosition();
     void wall_collide(unsigned index);
+    void obj_collide();
     void EnforceVelocityConstraints(unsigned index);
     void EnforceForceConstraints(unsigned index);
 

@@ -81,7 +81,7 @@ bool createParticle(vector<Particle> &particles, double r, const char* scene, in
         for(double i= bbox[0]; i<(bbox[0]*3)/4; i=i+r+r){//-4 -3 = 1
             for(double j= bbox[2]; j<bbox[3]; j=j+r+r){//-4 4 = 8
                 for(double k= bbox[4]; k<bbox[5]; k=k+r+r){//-4 4 = 8
-                    particles.push_back(Particle(i, j, k,r));//8*8*2 = 128
+                    particles.push_back(Particle(i, j, k,r));//8*8*1 = 64
                 }
             }
         }

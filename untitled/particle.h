@@ -11,7 +11,7 @@ struct Particle{
     Particle(double x, double y, double z, double r){
         pos = Point3(x,y,z);
         pre_pos = Point3(x,y,z);
-        density = 916.2f;
+        density = 0.9983f;
         mass = MASS;//unit: kg
         pressure = 0.0f;
         color = Point3(0.0f, 0.0f, 1.0f);
@@ -41,6 +41,8 @@ struct Particle{
     double mass;
     double pressure;
     double radius;
+    Vector3 force_pressure;
+    Vector3 force_vis;
 
     double ci;//color for interface tension
     double cs;//color for surface tension

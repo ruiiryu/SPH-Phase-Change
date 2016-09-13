@@ -1,3 +1,6 @@
+#ifdef WIN32
+#include <windows.h>											// Header File For Windows
+#endif
 #include <cstdio>
 #include <cmath>
 #include <cstdlib>
@@ -76,29 +79,30 @@ bool createParticle(vector<Particle> &particles, double r, const char* scene, in
 
     }
     sc.close();
-
+    count = 0;
     if(box == 0){//rectangle water at back
         for(double i= bbox[0]; i<(bbox[0]*3)/4; i=i+r+r){//-4 -3 = 1
             for(double j= bbox[2]; j<bbox[3]; j=j+r+r){//-4 4 = 8
                 for(double k= bbox[4]; k<bbox[5]; k=k+r+r){//-4 4 = 8
-                    if(lrint(j) & 1){
+                    if(count%2 == 0){
                         particles.push_back(Particle(i, j, k,r));
                     }else{
                         particles.push_back(Particle(i+r, j, k+r,r));
                     }
-
+                    count++;
                 }
             }
         }
-    }else if(box == 1){//cube water at center
+    }else if(box == 1){//cube water at top
         for(double i= -1.0; i<1; i=i+r+r){
-            for(double j= -1.0; j<2; j=j+r+r){
+            for(double j= 1.0; j<bbox[3]; j=j+r+r){
                 for(double k= -1.0; k<1; k=k+r+r){
-                    if(lrint(j) & 1){
+                    if(count%2 == 0){
                         particles.push_back(Particle(i, j, k,r));
                     }else{
                         particles.push_back(Particle(i+r, j, k+r,r));
                     }
+                    count++;
                 }
             }
         }

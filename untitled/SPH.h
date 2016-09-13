@@ -41,22 +41,6 @@ struct Rigid_Body{
 
 };
 
-struct Liquid{
-    vector<unsigned> listWaterparticle;
-    vector<unsigned> side1;
-    vector<unsigned> side2;
-    vector<unsigned> side3;
-    vector<unsigned> side4;
-    vector<unsigned> side5;
-    vector<unsigned> side6;
-
-    bool finditem(vector<unsigned>& vec, unsigned item){
-        std::vector<unsigned>::iterator it;
-        it = std::find(vec.begin(), vec.end(), item);
-        if (it != vec.end()) return true;
-        else return false;
-    }
-};
 
 class SPHParticleSystem{
 public:
@@ -106,7 +90,6 @@ public:
     vector<pair<Point3,Point3> > layer;//index=edge no.
     vector<unsigned> energy;
     Rigid_Body ice_obj;
-    Liquid water;
 protected:
     double time_delta;
     double time_end;
@@ -122,6 +105,7 @@ protected:
     double vis_ice;
     double k;//gas constant (stiffness)
     double hh;
+	double h2;
     double gamma;
     double sigma;
     double zeta;

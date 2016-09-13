@@ -11,7 +11,7 @@
 
 #include <GL/gl.h>
 #include <GL/glut.h>
-
+#include <GL/glext.h>
 #include "SPH.h"
 #include "vec3.h"
 #include "gui.h"
@@ -19,14 +19,11 @@
 //water properties from http://www.engineeringtoolbox.com/water-thermal-properties-d_162.html
 //http://www.engineeringtoolbox.com/ice-thermal-properties-d_576.html
 //and http://www1.lsbu.ac.uk/water/water_properties.html
-//https://wiki.blender.org/index.php/Dev:Ref/Release_Notes/2.66/Physics
+//https://en.wikipedia.org/wiki/Speed_of_sound
 bool saveframe = false;
 unsigned particle_num;
 char compare_particle[256];
-unsigned num_comp = 3;
-double f_ps=0;
-double f_vis=0;
-double acc_aGravity = 0;
+vector<unsigned> less_nds;
 SPHParticleSystem::SPHParticleSystem(vector<Particle> &particles , double xmin, double xmax,
                                      double ymin, double ymax,
                                      double zmin, double zmax, Point3 center,double ixmin, double ixmax,
@@ -66,6 +63,7 @@ SPHParticleSystem::SPHParticleSystem(vector<Particle> &particles , double xmin, 
 
 */
     p_grid = NULL;
+    less_nds.clear();
     InitSPH();
 }
 
@@ -75,35 +73,35 @@ void SPHParticleSystem::InitSPH(){
         h = 0.6f;
 
     }else{
-        h = 0.3f;
+        h = 0.25f;
     }
     hh = h*h;
+	h2 = 2*h;
     gamma = 1.0f;
     sigma = 0.0f;
     zeta = 1.0f;
-    //reden=1000.0f;//rest density unit: kg/m^3
-    reden=1.0f;//g/cm^3
-    //vis = 1.52f;//viscosity kg/ms 15.2g/cms
-    vis = 0.00076f;//g/cm(0.0005)s
-    //k = 343.2f;//(stiffness) speed of sound unit: m/s 34320 cm/s
-    //Individual Gas Constant - R 461.5 (J/kg K)
-    k = 1.716f;//cm/(0.0005)s
 
-    max_acceleration = 300.0f;
-    max_acceleration_sqrt = sqrtf(max_acceleration);
-    max_velocity = max_acceleration*time_delta;
-    max_velocity_sqrt = sqrtf(max_velocity);
-    damp = 0.6f;
-    ambient_gravity = Vector3(0.0f, -1000.0f, 0.0f);//
+    //rest density unit: kg/m^3 20C
+    reden=0.9983f;//g/cm^3
+	//reden=0.9983*h2*h2*h2;//g/cm^3
+	//reden = 1000.0f;
+    //vis = 1.0f;//viscosity kg/ms 10.0g/cms 20C
+    vis = 0.005f;//g/cm(0.0005)s
+	//vis = 10.0f;
+    //k = 343.2f;//(stiffness) speed of sound unit: m/s 34320 cm/s 20C
+    k = 17.16f;//cm/(0.0005)s
+	//k = 34320.0f;
+
+    damp = 0.8f;
+    //ambient_gravity = Vector3(0.0f, -10.0f, 0.0f);//
+	ambient_gravity = Vector3(0.0f, -1000.0f, 0.0f);//
 
 
     kernel_poly6 = 315.0f/(64.0f*PI*powf(h, 9.0f));
-    kernel_poly6_diff = -945.0f/(32.0f*PI*powf(h, 9.0f));
-    kernel_poly6_2diff = 945.0f/(32.0f*PI*powf(h, 6.0f));
     kernel_spiky_diff = -45.0f/(PI*powf(h, 6.0f));
     kernel_laplacian = 45.0f/(PI*powf(h, 6.0f));
 
-    double mass = 0.001;
+    double mass = 0.012;
     for(unsigned i = 0; i<particle_num ; i++){
         Particle& p = list_particles[i];
         p.id = i;
@@ -114,8 +112,11 @@ void SPHParticleSystem::InitSPH(){
     }
 
     sprintf(compare_particle,
-            "TperFrame/SPH_PTh%.2f-reden%.2f-vis%.2f-k%.2f-damp%.2f.txt",
-            h,reden,vis,k,damp,c_ice,c_w,hc,k_w,k_ice,ch,LH);
+            "TperFrame/SPH_PTh%.1f-reden%.4f-vis%.3f-k%.2f-damp%.1f-mass%.3f.txt",
+            h,reden,vis,k,damp,mass);
+	//sprintf(compare_particle,
+    //        "TperFrame/SPH_PT-ParticleNum0-h%.1f-reden%.4f-vis%.3f-k%.2f-damp%.1f.txt",
+    //        h,reden,vis,k,damp,c_ice,c_w,hc,k_w,k_ice,ch,LH);
 
 }
 
@@ -124,6 +125,9 @@ bool SPHParticleSystem::savefile(){
     try{
         if(frame == 0){
             out.open(compare_particle, std::ofstream::out);
+            out << "kernel_poly6: " << kernel_poly6 << std::endl;
+            out << "kernel_spiky_diff: " << kernel_spiky_diff << std::endl;
+            out << "kernel_laplacian: " << kernel_laplacian << std::endl;
         }else{
             out.open(compare_particle, std::ofstream::out | std::ofstream::app);
         }
@@ -133,12 +137,8 @@ bool SPHParticleSystem::savefile(){
         return false;
     }
     out << "Frame: " << frame << std::endl;
-    out << "kernel_poly6: " << kernel_poly6 << std::endl;
-    out << "kernel_spiky_diff: " << kernel_spiky_diff << std::endl;
-    out << "kernel_laplacian: " << kernel_laplacian << std::endl;
     for(unsigned i=0; i<particle_num; i++){
-        Particle& curr = list_particles[i];
-        //out << "Frame: " << frame << std::endl;
+        Particle& curr = list_particles[i];//less_nds[i]
         out << "particle number: " << i << std::endl;
         out << "nbs-size: " << curr.nbs.size() << std::endl;
         out << "mass: " << curr.mass << std::endl;
@@ -148,7 +148,7 @@ bool SPHParticleSystem::savefile(){
         out << "fp: " << curr.force_pressure[0] << " " << curr.force_pressure[1] << " " << curr.force_pressure[2] << std::endl;
         out << "fv: " << curr.force_vis[0] << " " << curr.force_vis[1] << " " << curr.force_vis[2] << " " <<std::endl;
         out << "acc: " << curr.acc[0] << " " << curr.acc[1] << " " << curr.acc[2] << " " <<std::endl;
-        out << "vel: " << curr.velocity[0] << " " << curr.velocity[1] << " " << curr.velocity[2] << " " <<std::endl;
+        out << "vel_delta: " << curr.velocity_delta[0] << " " << curr.velocity_delta[1] << " " << curr.velocity_delta[2] << " " <<std::endl;
         out << "pos: " << curr.pos[0] << " " << curr.pos[1] << " " << curr.pos[2] << std::endl;
         //out << "Temperature: " << curr.T[0] << std::endl;
         //out << "Heat: " << curr.heatvalue << std::endl;
@@ -229,22 +229,11 @@ double SPHParticleSystem::SPHStep(){
     }
 
     frame++;
-
-    f_ps = 0;
-    f_vis = 0;
-    acc_aGravity = 0;
+    less_nds.clear();
     clock_t end = clock();
     return double(end - start)/CLOCKS_PER_SEC;
 }
-/*
-    00000 00000
-    00000
-    00-00
-    00000
-    00000
-    h=0.2
-    max nb = 124
-*/
+
 
 void SPHParticleSystem::SearchParticleNeighbors(){
     cout<<"SearchParticleNeighbors."<<std::endl;
@@ -266,13 +255,12 @@ void SPHParticleSystem::UpdateParticlePressure(){
             double c = hh-distance*distance;
             particle.density += list_particles[nb_id].mass*kernel_poly6*(c*c*c);
         }
-        if(particle.density == 0){
-           particle.density = 0.1;
+        if(particle.density <= 0.0f){
+           particle.density = particle.mass;
         }
         //particle.density = max(particle.density,reden);
         particle.pressure = k*(particle.density-reden);
-        if(particle.pressure < 0)
-            particle.pressure*=zeta;
+
     }
 }
 
@@ -291,15 +279,16 @@ void SPHParticleSystem::UpdateParticleAcceleration(){
             double c2 = kernel_spiky_diff*(h-distance)*(h-distance);
             double c3 = 1.0f/nb_particle.density;
             particle.force_pressure += (particle.pos-nb_particle.pos).normalize()*c1*c2*c3;
-
+			//Vector3 n=Vector3(particle.pos[0], particle.pos[1], particle.pos[2]);
+			//particle.force_pressure += n.normalize()*c1*c2*c3;
             //acceleration from viscosity
             double c4 = vis*kernel_laplacian*(h-distance)*nb_particle.mass/(nb_particle.density/**particle.density*/);
             particle.force_vis += (nb_particle.velocity-particle.velocity)*c4;
 
         }
 
-        particle.acc += particle.force_pressure/particle.mass;
-        particle.acc += particle.force_vis/particle.mass;
+        particle.acc += particle.force_pressure/particle.density;
+        particle.acc += particle.force_vis/particle.density;
         particle.acc += ambient_gravity;
 
     }
@@ -312,17 +301,15 @@ void SPHParticleSystem::UpdateParticlePosition(){
 
         Vector3 prev_velocity = particle.velocity;
         particle.pre_pos = particle.pos;
-        particle.velocity_delta += particle.acc*time_delta;
-        if(particle.velocity_delta.length() > max_velocity)
-            particle.velocity_delta = particle.velocity_delta.normalize() * max_velocity;
+        particle.velocity_delta = particle.acc*time_delta;
 
         particle.pos += particle.velocity_delta*time_delta;
 
         wall_collide(i);
 
         particle.velocity = (prev_velocity + particle.velocity_delta)*0.5f;
+
     }
-    //obj_collide();
 
 
 }

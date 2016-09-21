@@ -12,10 +12,29 @@ struct Particle{
         pos = Point3(x,y,z);
         pre_pos = Point3(x,y,z);
         density = 0.9983f;
-        mass = MASS;//unit: kg
+        mass = MASS;//unit: g
         pressure = 0.0f;
         color = Point3(0.0f, 0.0f, 1.0f);
         velocity = velocity_delta = Vector3(0, 0, 0);
+		acc = acc_delta = Vector3(0, 0, 0);
+        radius = r;
+        darkmatter = false;
+        //type = Particle::ICE;
+        type = Particle::WATER;
+        heatvalue = 0;
+        T[0] = 273.0f;  T[1] = 0;
+        nbs_notAir[0] = 0;  nbs_notAir[1] = 0;  nbs_notAir[2] = 0;
+        nbs_notAir[3] = 0;  nbs_notAir[4] = 0;  nbs_notAir[5] = 0;
+    }
+	Particle(double x, double y, double z, double r, double m){
+        pos = Point3(x,y,z);
+        pre_pos = Point3(x,y,z);
+        density = 0.9983f;
+        mass = m;//g
+        pressure = 0.0f;
+        color = Point3(0.0f, 1.0f, 1.0f);
+        velocity = velocity_delta = Vector3(0, 0, 0);
+		acc = acc_delta = Vector3(0, 0, 0);
         radius = r;
         darkmatter = false;
         //type = Particle::ICE;
@@ -30,6 +49,7 @@ struct Particle{
     Point3 pre_pos;
     Point3 color;
     Vector3 acc;
+	Vector3 acc_delta;
     Vector3 pre_velocity;
     Vector3 velocity;
     Vector3 velocity_delta;

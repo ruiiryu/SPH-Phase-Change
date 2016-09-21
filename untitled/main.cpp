@@ -1,6 +1,4 @@
-#ifdef WIN32
-#include <windows.h>											// Header File For Windows
-#endif
+#include <Windows.h>
 #include <cstdio>
 #include <cmath>
 #include <cstdlib>
@@ -80,14 +78,33 @@ bool createParticle(vector<Particle> &particles, double r, const char* scene, in
     }
     sc.close();
     count = 0;
-    if(box == 0){//rectangle water at back
-        for(double i= bbox[0]; i<(bbox[0]*3)/4; i=i+r+r){//-4 -3 = 1
-            for(double j= bbox[2]; j<bbox[3]; j=j+r+r){//-4 4 = 8
-                for(double k= bbox[4]; k<bbox[5]; k=k+r+r){//-4 4 = 8
+	xmin = 10000.0;		ymin = 10000.0;		zmin = 10000.0;
+	xmax = -10000.0;	ymax = -10000.0;	zmax = -10000.0;
+    double r2 = r*2;
+	double r4 = r*4;
+	if(box == 0){//water drop
+        for(double i= bbox[0]; i<bbox[1]; i=i+r2){//-4 4 = 8
+            for(double j= bbox[2]; j<bbox[2]+0.5f; j=j+r2){//-4 -3.5 = 0.5
+                for(double k= bbox[4]; k<bbox[5]; k=k+r2){//-4 4 = 8
                     if(count%2 == 0){
                         particles.push_back(Particle(i, j, k,r));
                     }else{
-                        particles.push_back(Particle(i+r, j, k+r,r));
+                        particles.push_back(Particle(i+r, j+r, k+r,r));
+                    }
+                    count++;
+                }
+            }
+        }
+		xmin = bbox[0];		ymin = bbox[2];			zmin = bbox[4];
+		xmax = bbox[1];		ymax = bbox[2]+0.5f;	zmax = bbox[5];
+		//create water droplet
+		for(double i= -1.0f; i<1.0f; i=i+r2){//-1 1 = 2
+            for(double j= 0.0f; j<bbox[3]/4.0f; j=j+r2){//0 1 = 1
+                for(double k= -1.0f; k<1.0f; k=k+r2){//-1 1 = 2
+                    if(count%2 == 0){
+                        particles.push_back(Particle(i, j, k,r));
+                    }else{
+                        particles.push_back(Particle(i+r, j+r, k+r,r));
                     }
                     count++;
                 }
@@ -95,18 +112,35 @@ bool createParticle(vector<Particle> &particles, double r, const char* scene, in
         }
     }else if(box == 1){//cube water at top
         for(double i= -1.0; i<1; i=i+r+r){
-            for(double j= 1.0; j<bbox[3]; j=j+r+r){
+            for(double j= 3.0; j<bbox[3]; j=j+r+r){
                 for(double k= -1.0; k<1; k=k+r+r){
                     if(count%2 == 0){
                         particles.push_back(Particle(i, j, k,r));
                     }else{
                         particles.push_back(Particle(i+r, j, k+r,r));
                     }
+					if(k < zmin){
+						zmin = k;
+					}else if(k > zmax){
+						zmax = k;
+					}
                     count++;
                 }
+				if(j < ymin){
+						ymin = j;
+				}else if(j > ymax){
+						ymax = j;
+				}
             }
+			if(i < xmin){
+				xmin = i;
+			}else if(i > xmax){
+				xmax = i;
+			}
         }
+		xmax += r+r;	ymax += r+r;	zmax += r+r;
     }
+	
     return true;
 
 }

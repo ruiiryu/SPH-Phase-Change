@@ -42,6 +42,8 @@ SPHParticleSystem::SPHParticleSystem(vector<Particle> &particles , double xmin, 
     particle_num = list_particles.size();
     num_ice = list_particles.size();
     num_w = 0;
+	cout << ixmin << " " << ixmax << " : " << iymin << " " << iymax << " : " << izmin << " " << izmax << std::endl;
+	volume = (ixmax-ixmin)*(iymax-iymin)*(izmax-izmin);
 
     /*       y
             |
@@ -70,50 +72,53 @@ SPHParticleSystem::SPHParticleSystem(vector<Particle> &particles , double xmin, 
 void SPHParticleSystem::InitSPH(){
     //
     if(infname == 0){
-        h = 0.6f;
-
+        h = 0.3f;
     }else{
-        h = 0.25f;
+        h = 0.2f;
     }
     hh = h*h;
 	h2 = 2*h;
+	double h4 = 4.0f*h;
     gamma = 1.0f;
     sigma = 0.0f;
     zeta = 1.0f;
 
     //rest density unit: kg/m^3 20C
-    reden=0.9983f;//g/cm^3
-	//reden=0.9983*h2*h2*h2;//g/cm^3
+    //reden=0.9983f;//g/cm^3
+	reden=0.9983*h2*h2*h2;//g/cm^3
 	//reden = 1000.0f;
     //vis = 1.0f;//viscosity kg/ms 10.0g/cms 20C
     vis = 0.005f;//g/cm(0.0005)s
 	//vis = 10.0f;
     //k = 343.2f;//(stiffness) speed of sound unit: m/s 34320 cm/s 20C
-    k = 17.16f;//cm/(0.0005)s
+	k = 17.16f;//cm/(0.0005)s
 	//k = 34320.0f;
 
-    damp = 0.8f;
+    damp = 0.6f;
     //ambient_gravity = Vector3(0.0f, -10.0f, 0.0f);//
-	ambient_gravity = Vector3(0.0f, -1000.0f, 0.0f);//
+	//ambient_gravity = Vector3(0.0f, -1000.0f, 0.0f);//
+	ambient_gravity = Vector3(0.0f, -5.0f, 0.0f);
 
 
     kernel_poly6 = 315.0f/(64.0f*PI*powf(h, 9.0f));
     kernel_spiky_diff = -45.0f/(PI*powf(h, 6.0f));
     kernel_laplacian = 45.0f/(PI*powf(h, 6.0f));
 
-    double mass = 0.012;
+	double mass = volume*reden/particle_num;
+	cout << volume << " : " << mass << std::endl;
+    
     for(unsigned i = 0; i<particle_num ; i++){
         Particle& p = list_particles[i];
         p.id = i;
         p.area = 6*4*p.radius*p.radius;
         p.mass = mass;
-        p.velocity = ambient_gravity*time_delta;
-        p.velocity_delta = ambient_gravity*time_delta;
+        //p.velocity = ambient_gravity*time_delta;
+        //p.velocity_delta = ambient_gravity*time_delta;
     }
 
     sprintf(compare_particle,
-            "TperFrame/SPH_PTh%.1f-reden%.4f-vis%.3f-k%.2f-damp%.1f-mass%.3f.txt",
-            h,reden,vis,k,damp,mass);
+            "TperFrame/SPH_PTScnce%dh%.1f-reden%.4f-vis%.3f-k%.2f-damp%.1f-mass%.3f.txt",
+            infname,h,reden,vis,k,damp,mass);
 	//sprintf(compare_particle,
     //        "TperFrame/SPH_PT-ParticleNum0-h%.1f-reden%.4f-vis%.3f-k%.2f-damp%.1f.txt",
     //        h,reden,vis,k,damp,c_ice,c_w,hc,k_w,k_ice,ch,LH);
@@ -234,7 +239,7 @@ double SPHParticleSystem::SPHStep(){
     return double(end - start)/CLOCKS_PER_SEC;
 }
 
-
+//Search index of neighbor particle from paper "Analysis of the clustering Properties of Hilbert space-Filling Curve"
 void SPHParticleSystem::SearchParticleNeighbors(){
     cout<<"SearchParticleNeighbors."<<std::endl;
     for(unsigned i=0; i<particle_num; i++){
@@ -243,9 +248,10 @@ void SPHParticleSystem::SearchParticleNeighbors(){
 
 }
 
-
+//Use Equation from paper "Particle-based Fluid Simulation for Interaction Applications" 
 void SPHParticleSystem::UpdateParticlePressure(){
     cout<<"UpdateParticlePressure."<<std::endl;
+	//Equation 3. and kernel_poly6 is Smoothing kernel Poly6 in Equation 20.
     for(unsigned i=0; i<particle_num; i++){
         Particle& particle = list_particles[i];
         particle.density = 0.0f;
@@ -258,12 +264,12 @@ void SPHParticleSystem::UpdateParticlePressure(){
         if(particle.density <= 0.0f){
            particle.density = particle.mass;
         }
-        //particle.density = max(particle.density,reden);
+		//Equation 12.
         particle.pressure = k*(particle.density-reden);
 
     }
 }
-
+//Use Equation from paper "Particle-based Fluid Simulation for Interaction Applications"
 void SPHParticleSystem::UpdateParticleAcceleration(){
     cout<<"UpdateParticleAcceleration."<<std::endl;
     for(unsigned i=0; i<particle_num; i++){
@@ -274,40 +280,44 @@ void SPHParticleSystem::UpdateParticleAcceleration(){
         for(unsigned j=0; j<particle.nbs.size(); j++){
             Particle& nb_particle = list_particles[particle.nbs[j].first];
             double distance = particle.nbs[j].second;
-            //acceleration from pressure
+            //acceleration from pressure calculated by equation 10.
             double c1 = -0.5f*nb_particle.mass*(particle.pressure+nb_particle.pressure);
+			//kernel_spiky_diff is gradient Smoothing kernel Spiky in Equation 21.
             double c2 = kernel_spiky_diff*(h-distance)*(h-distance);
             double c3 = 1.0f/nb_particle.density;
             particle.force_pressure += (particle.pos-nb_particle.pos).normalize()*c1*c2*c3;
-			//Vector3 n=Vector3(particle.pos[0], particle.pos[1], particle.pos[2]);
-			//particle.force_pressure += n.normalize()*c1*c2*c3;
-            //acceleration from viscosity
-            double c4 = vis*kernel_laplacian*(h-distance)*nb_particle.mass/(nb_particle.density/**particle.density*/);
+			
+            //acceleration from viscosity calculated by equation 14.
+			//kernel_laplacian is laplacian Smoothing kernel viscosity in Equation 22.
+            double c4 = vis*kernel_laplacian*(h-distance)*nb_particle.mass/(nb_particle.density);
             particle.force_vis += (nb_particle.velocity-particle.velocity)*c4;
 
         }
-
+		//acceleration total calculated by equation 8.
         particle.acc += particle.force_pressure/particle.density;
         particle.acc += particle.force_vis/particle.density;
         particle.acc += ambient_gravity;
 
     }
 }
-
+//Use Equation from paper "Particle-based Fluid Simulation for Interaction Applications"
+//In Section 3.6 Simulation
 void SPHParticleSystem::UpdateParticlePosition(){
     cout<<"UpdateParticlePosition."<<std::endl;
+	//Integration equation 8. use Leap-Frog scheme.
+	//http://www.ch.embnet.org/MD_tutorial/pages/MD.Part1.html
     for(unsigned i=0; i<particle_num; i++){
         Particle& particle = list_particles[i];
-
-        Vector3 prev_velocity = particle.velocity;
-        particle.pre_pos = particle.pos;
-        particle.velocity_delta = particle.acc*time_delta;
-
-        particle.pos += particle.velocity_delta*time_delta;
-
+		particle.pre_velocity = particle.velocity_delta;
+		particle.pre_pos = particle.pos;
+		
+		particle.velocity_delta += particle.acc*time_delta;
+		particle.pos += particle.velocity_delta*time_delta;
+		particle.velocity = (particle.pre_velocity + particle.velocity_delta)*0.5f;
+        
         wall_collide(i);
 
-        particle.velocity = (prev_velocity + particle.velocity_delta)*0.5f;
+        
 
     }
 
@@ -329,8 +339,9 @@ void SPHParticleSystem::wall_collide(unsigned index){
                 double pd = particle.pos[i];
                 double dist_diff = bbox[ii]-pd;
                 double time_diff = dist_diff/fabsf(particle.velocity_delta[i]);
-                particle.velocity_delta[i]=-particle.velocity_delta[i];
+                particle.velocity_delta[i] = fabsf(particle.velocity_delta[i]);
                 particle.velocity_delta = particle.velocity_delta * damp;
+				//particle.pre_velocity[i] = -particle.pre_velocity[i];
                 particle.pos[i] = bbox[ii]+fabsf(particle.velocity_delta[i])*time_diff;
             }
         }
@@ -340,8 +351,9 @@ void SPHParticleSystem::wall_collide(unsigned index){
                 double pd = particle.pos[i];
                 double dist_diff = pd-bbox[ii];
                 double time_diff = dist_diff/fabsf(particle.velocity_delta[i]);
-                particle.velocity_delta[i]=-particle.velocity_delta[i];
+                particle.velocity_delta[i] = -fabsf(particle.velocity_delta[i]);
                 particle.velocity_delta = particle.velocity_delta * damp;
+				//particle.pre_velocity[i] = -particle.pre_velocity[i];
                 particle.pos[i] = bbox[ii]-fabsf(particle.velocity_delta[i])*time_diff;
             }
         }

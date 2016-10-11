@@ -1,0 +1,34 @@
+\documentclass[10pt, twocolumn] {IEEEtran}
+\usepackage{verbatim}
+\usepackage{graphicx}
+
+\newcommand{\myscale}{0.65}
+\renewcommand{\baselinestretch}{0.960}
+
+\begin{document}
+\title{Title}
+\author{Nutcha Chayanurak}
+\maketitle
+\begin{abstract}  \end{abstract}
+\section{Introduction}
+\section{Previous Work}
+ This section reviews previous methods for the simulation of melting and freezing phenomena. Kim et al.\cite{kim2004hybrid} presented a hybrid algorithm for generating the ice crystal growth by the thermodynamics. Although this method cannot handle thick features, such as icicles, they also proposed a method for simulating icicle formation by solving the thin-film Stefan problem\cite{kim2006modeling}. Miao and Xiao\cite{Miao:2015:PIF:2817675.2817676} presented particle-based ice freezing model to simulate the fast freezing phenomenon occurs in flowing water. This method improve the visual detail of ice appearance and can create convincing freezing ice results except in violent fluid movement. 
+ 
+ Iwasaki et al.\cite{iwasaki2010fast} proposed a particle-based simulation method for the heat transfer and interactions between fluid and ice. They improved a simple method for the interfacial forces between water-ice particle to simulate the flow of meltwater on ice and the formation of water droplets. Although this method can be applied to the simulation of water freezing, it was not further studied.
+ Domaradzki and Martyn\cite{domaradzki2014improved} proposed new particle-based air model represents the natural air convection on the ice melting process  which allows for considering  local changes in air temperature and a new external heat source model controls direction of the ice melting.
+ Lii and Wong\cite{lii2014ice} proposed new attribute called virtual water for ice particles. Their approach also handles the transition between the virtual water on ice surface and the water particles and computes the density field defined by the ice particles and the virtual water.
+
+\section{Method}
+\section{Result}
+\section{Conclusion}
+\section{Acknowledgement}
+
+\nocite{*}
+\bibliographystyle{unsrt}
+\bibliography{BibFile}
+
+\end{document}
+
+
+
+
